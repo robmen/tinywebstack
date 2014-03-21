@@ -39,6 +39,12 @@ namespace TinyWebStack
             if (TryGetMethodNameForMethod(http.Request.HttpMethod, this.HandlerType, out entry))
             {
                 var queryStringData = PopulateDictionary(http.Request.Unvalidated().QueryString, this.RouteData.Values);
+
+                if (http.Request.Unvalidated().QueryString.Count > 0)
+                {
+                    queryStringData["_RawQueryString"] = http.Request.Unvalidated().QueryString.ToString().UrlDecode();
+                }
+
                 var formData = PopulateDictionary(http.Request.Unvalidated().Form);
 
                 object queryStringObject = null;
@@ -91,9 +97,9 @@ namespace TinyWebStack
 
                 if (writer != null && outputData != null)
                 {
-                    http.Response.ContentType = writer.ContentType;
-
                     writer.Write(http.Response.Output, outputData);
+
+                    http.Response.ContentType = writer.ContentType;
                 }
 
                 this.WriteCookies(http.Response.Cookies, this.HandlerType, handler);
@@ -109,32 +115,6 @@ namespace TinyWebStack
             http.Response.TrySkipIisCustomErrors = true;
         }
 
-        private IDictionary<string, object> PopulateInputs(RouteData routeData, NameValueCollection queryString, NameValueCollection formData)
-        {
-            var inputs = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (string key in queryString.Keys)
-            {
-                var values = queryString.GetValues(key);
-
-                if (values.Length == 1)
-                {
-                    inputs[key] = values[0];
-                }
-                else
-                {
-                    inputs[key] = values[0];
-                }
-            }
-
-            foreach (var data in routeData.Values)
-            {
-                inputs[data.Key] = data.Value;
-            }
-
-            return inputs;
-        }
-
         private IDictionary<string, object> PopulateDictionary(params object[] collections)
         {
             var inputs = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -146,7 +126,7 @@ namespace TinyWebStack
                 {
                     foreach (string key in nvc.Keys)
                     {
-                        inputs[key] = nvc.GetValues(key);
+                        inputs[key ?? "_UnnamedQueryStringValue"] = nvc.GetValues(key);
                     }
                 }
                 else
