@@ -68,12 +68,6 @@ namespace TinyWebStack
 
                 var handler = Activator.CreateInstance(this.HandlerType);
 
-                var appState = handler as IAccessApplicationState;
-                if (appState != null)
-                {
-                    appState.ApplicationState = new ApplicationState(http.Cache);
-                }
-
                 this.AssignInputs(queryStringData, this.HandlerType, handler);
                 this.ReadCookies(http.Request.Cookies, this.HandlerType, handler);
 

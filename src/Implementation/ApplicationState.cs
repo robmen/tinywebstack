@@ -1,17 +1,18 @@
 ﻿using System;
+using System.Web;
 using System.Web.Caching;
 
-namespace TinyWebStack
+namespace TinyWebStack.Implementation
 {
     /// <summary>
     /// Service that allows handlers to store state across requests in the application's
     /// memory.
     /// </summary>
-    public class ApplicationState
+    internal class ApplicationState : IApplicationState
     {
-        public ApplicationState(Cache cache)
+        public ApplicationState()
         {
-            this.Cache = cache;
+            this.Cache = HttpContext.Current.Cache;
         }
 
         private Cache Cache { get; set; }
@@ -26,9 +27,9 @@ namespace TinyWebStack
             return (T)this.Cache.Get(key);
         }
 
-        public void Set(string key, object value, DateTime? expires = null)
+        public void Set(string key, object value, DateTime? expires = null, TimeSpan? sliding = null)
         {
-            this.Cache.Insert(key, value, null, expires.HasValue ? expires.Value : Cache.NoAbsoluteExpiration, Cache.NoSlidingExpiration);
+            this.Cache.Insert(key, value, null, expires.HasValue ? expires.Value : Cache.NoAbsoluteExpiration, sliding.HasValue ? sliding.Value : Cache.NoSlidingExpiration);
         }
 
         public object Remove(string key)
