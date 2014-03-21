@@ -13,7 +13,6 @@
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
-
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
@@ -23,7 +22,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
@@ -32,12 +30,11 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-
   <ItemGroup>
     <Compile Include="Container.cs" />
     <Compile Include="ContentTypeAttribute.cs" />
     <Compile Include="CookieAttribute.cs" />
-    <Compile Include="FileTransmission.cs" />
+    <Compile Include="Models\FileTransmission.cs" />
     <Compile Include="HttpHandler.cs" />
     <Compile Include="IContainerDependencyResolver.cs" />
     <Compile Include="IContentTypeHandler.cs" />
@@ -80,12 +77,10 @@
     <Compile Include="v1\StatusCodeView.cs" />
     <Compile Include="v1\ViewBase.cs" />
   </ItemGroup>
-
   <ItemGroup>
     <None Include="TinyWebStack.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
-
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -102,25 +97,20 @@
       <HintPath>..\packages\Newtonsoft.Json.6.0.1\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
   </ItemGroup>
-
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-
   <!--
     Build the Nuget package after the build.
   -->
   <Target Name="AfterBuild" DependsOnTargets="_GatherAfterBuildInputsOutputs" Inputs="@(AfterBuildInput)" Outputs="@(AfterBuildOutput)">
     <MakeDir Directories="$(OutputPath)package" />
     <Exec Command="nuget.exe pack $(MsbuildProjectFile) -OutputDirectory $(OutputPath)package" />
-
     <ItemGroup>
       <NugetPackage Include="$(OutputPath)package\TinyWebStack.*.nupkg" />
     </ItemGroup>
   </Target>
-
   <Target Name="AfterClean">
     <RemoveDir Directories="$(OutputPath)package" />
   </Target>
-
   <Target Name="_GatherAfterBuildInputsOutputs">
     <ItemGroup>
       <AfterBuildInput Include="TinyWebStack.nuspec" />
@@ -129,7 +119,6 @@
       <AfterBuildOutput Include="$(OutputPath)package\TinyWebStack.*.nupkg" />
     </ItemGroup>
   </Target>
-
   <!--
     Publish package targets.
   -->

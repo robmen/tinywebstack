@@ -1,5 +1,5 @@
 ﻿
-namespace TinyWebStack
+namespace TinyWebStack.Models
 {
     public class FileTransmission
     {
