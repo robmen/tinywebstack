@@ -17,12 +17,12 @@ namespace TinyWebStack
         /// <summary>
         /// Registers the content type handlers found in the provided assemblies.
         /// </summary>
-        /// <param name="assemblies">Optional list of assemblies to register. Default is the calling assembly.</param>
+        /// <param name="assemblies">Optional list of assemblies to register. Default is the calling assembly and TinyWebStack assembly.</param>
         public static void RegisterContentTypes(params Assembly[] assemblies)
         {
             if (assemblies.Length == 0)
             {
-                assemblies = new[] { Assembly.GetCallingAssembly() };
+                assemblies = new[] { Assembly.GetCallingAssembly(), Assembly.GetExecutingAssembly() };
             }
 
             ContentTypeToHandlers = new Dictionary<string, IList<IContentTypeHandler>>();
@@ -54,11 +54,13 @@ namespace TinyWebStack
         /// <returns>True if a writer was found for the accepted content types.</returns>
         public static bool TryGetContentTypeWriter(string[] accepted, Type handlerType, Type dataType, out IContentTypeWriter writer)
         {
+            var contentTypes = accepted.Union(new[] { "?" });
+
             writer = null;
 
-            foreach (var accept in accepted)
+            foreach (var contentType in contentTypes)
             {
-                var contentType = accept.Equals("*/*") ? (ConsiderWildCardContentTypeAs ?? "text/html") : accept;
+                //var contentType = accept.Equals("*/*") ? (ConsiderWildCardContentTypeAs ?? "text/html") : accept;
 
                 IList<IContentTypeHandler> contentHandlers;
                 if (ContentTypeToHandlers.TryGetValue(contentType, out contentHandlers))
