@@ -13,6 +13,7 @@
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
+
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
@@ -22,6 +23,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
@@ -30,14 +32,68 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Container.cs" />
+    <Compile Include="ContentTypeAttribute.cs" />
+    <Compile Include="CookieAttribute.cs" />
+    <Compile Include="FileTransmission.cs" />
+    <Compile Include="HttpHandler.cs" />
+    <Compile Include="IContainerDependencyResolver.cs" />
+    <Compile Include="IContentTypeHandler.cs" />
+    <Compile Include="IContentTypeWriter.cs" />
+    <Compile Include="IApplicationState.cs" />
+    <Compile Include="IContainer.cs" />
+    <Compile Include="IServerUtility.cs" />
+    <Compile Include="IResponse.cs" />
+    <Compile Include="IRequest.cs" />
+    <Compile Include="IOutput.cs" />
+    <Compile Include="IInput.cs" />
+    <Compile Include="IPatch.cs" />
+    <Compile Include="IHead.cs" />
+    <Compile Include="IRouteDefaultsAndConstraintsProvider.cs" />
+    <Compile Include="NullRouteDefaultsAndConstraintsProvider.cs" />
+    <Compile Include="RouteHandler.cs" />
+    <Compile Include="ContentHandling.cs" />
+    <Compile Include="IDelete.cs" />
+    <Compile Include="IPut.cs" />
+    <Compile Include="IPost.cs" />
+    <Compile Include="IGet.cs" />
+    <Compile Include="RouteAttribute.cs" />
+    <Compile Include="Routing.cs" />
+    <Compile Include="Status.cs" />
+    <Compile Include="Extensions\HttpRequestExtension.cs" />
+    <Compile Include="Extensions\StringExtensions.cs" />
+    <Compile Include="Extensions\TypeExtensions.cs" />
+    <Compile Include="Implementation\ApplicationState.cs" />
+    <Compile Include="Implementation\FileTransmissionHandler.cs" />
+    <Compile Include="Implementation\FileTransmissionWriter.cs" />
+    <Compile Include="Implementation\Request.cs" />
+    <Compile Include="Implementation\Response.cs" />
+    <Compile Include="Implementation\ServerUtility.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="v1\ControllerBase.cs" />
+    <Compile Include="v1\ControllerContext.cs" />
+    <Compile Include="v1\RedirectView.cs" />
+    <Compile Include="v1\JsonView.cs" />
+    <Compile Include="v1\Routing.cs" />
+    <Compile Include="v1\StatusCodeView.cs" />
+    <Compile Include="v1\ViewBase.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="TinyWebStack.nuspec" />
+    <None Include="packages.config" />
+  </ItemGroup>
+
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Web" />
     <Reference Include="System.Web.WebPages, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Xml" />
     <Reference Include="Munq.IocContainer">
       <HintPath>..\packages\Munq.IocContainer.3.1.6\Lib\Munq.IocContainer.dll</HintPath>
     </Reference>
@@ -46,62 +102,41 @@
       <HintPath>..\packages\Newtonsoft.Json.6.0.1\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Implementation\FileTransmissionWriter.cs" />
-    <Compile Include="FileTransmission.cs" />
-    <Compile Include="Implementation\FileTransmissionHandler.cs" />
-    <Compile Include="Implementation\ApplicationState.cs" />
-    <Compile Include="Container.cs" />
-    <Compile Include="IContainerDependencyResolver.cs" />
-    <Compile Include="IContentTypeHandler.cs" />
-    <Compile Include="ContentTypeAttribute.cs" />
-    <Compile Include="Extensions\HttpRequestExtension.cs" />
-    <Compile Include="IApplicationState.cs" />
-    <Compile Include="IContainer.cs" />
-    <Compile Include="Implementation\ServerUtility.cs" />
-    <Compile Include="Implementation\Response.cs" />
-    <Compile Include="IServerUtility.cs" />
-    <Compile Include="IResponse.cs" />
-    <Compile Include="IRequest.cs" />
-    <Compile Include="Implementation\Request.cs" />
-    <Compile Include="IOutput.cs" />
-    <Compile Include="IInput.cs" />
-    <Compile Include="IPatch.cs" />
-    <Compile Include="IHead.cs" />
-    <Compile Include="CookieAttribute.cs" />
-    <Compile Include="Extensions\TypeExtensions.cs" />
-    <Compile Include="HttpHandler.cs" />
-    <Compile Include="IContentTypeWriter.cs" />
-    <Compile Include="IRouteDefaultsAndConstraintsProvider.cs" />
-    <Compile Include="NullRouteDefaultsAndConstraintsProvider.cs" />
-    <Compile Include="RouteHandler.cs" />
-    <Compile Include="ContentHandling.cs" />
-    <Compile Include="v1\ControllerBase.cs" />
-    <Compile Include="v1\ControllerContext.cs" />
-    <Compile Include="Extensions\StringExtensions.cs" />
-    <Compile Include="IDelete.cs" />
-    <Compile Include="IPut.cs" />
-    <Compile Include="IPost.cs" />
-    <Compile Include="IGet.cs" />
-    <Compile Include="v1\JsonView.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="v1\RedirectView.cs" />
-    <Compile Include="RouteAttribute.cs" />
-    <Compile Include="Routing.cs" />
-    <Compile Include="Status.cs" />
-    <Compile Include="v1\Routing.cs" />
-    <Compile Include="v1\StatusCodeView.cs" />
-    <Compile Include="v1\ViewBase.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
+
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
+
+  <!--
+    Build the Nuget package after the build.
   -->
+  <Target Name="AfterBuild" DependsOnTargets="_GatherAfterBuildInputsOutputs" Inputs="@(AfterBuildInput)" Outputs="@(AfterBuildOutput)">
+    <MakeDir Directories="$(OutputPath)package" />
+    <Exec Command="nuget.exe pack $(MsbuildProjectFile) -OutputDirectory $(OutputPath)package" />
+
+    <ItemGroup>
+      <NugetPackage Include="$(OutputPath)package\TinyWebStack.*.nupkg" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="AfterClean">
+    <RemoveDir Directories="$(OutputPath)package" />
+  </Target>
+
+  <Target Name="_GatherAfterBuildInputsOutputs">
+    <ItemGroup>
+      <AfterBuildInput Include="TinyWebStack.nuspec" />
+      <AfterBuildInput Include="$(OutputPath)*.dll" />
+      <AfterBuildOutput Include="$(OutputPath)package" />
+      <AfterBuildOutput Include="$(OutputPath)package\TinyWebStack.*.nupkg" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Publish package targets.
+  -->
+  <Target Name="PublishPackage" DependsOnTargets="_OnlyPublishReleaseBuild;Build">
+    <Exec Command="nuget.exe push @(NugetPackage) $(PublishApiKey)" />
+  </Target>
+  <Target Name="_OnlyPublishReleaseBuild" Condition=" '$(Configuration)'!='Release' ">
+    <Error Text="Only publish the release build." />
+  </Target>
 </Project>

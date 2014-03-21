@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$id$</title>
+    <authors>robmen</authors>
+    <owners>robmen</owners>
+    <projectUrl>https://github.com/robmen/tinywebstack</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Initial pre-release of TinyWebStack.</releaseNotes>
+    <copyright>$author$</copyright>
+    <tags>tiny web stack aspnet</tags>
+  </metadata>
+</package>
