@@ -1,4 +1,5 @@
-﻿
+﻿using TinyWebStack.Models;
+
 namespace TinyWebStack.Implementation
 {
     [ContentType("?")]
