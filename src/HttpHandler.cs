@@ -34,75 +34,86 @@ namespace TinyWebStack
         {
             Status status = null;
 
-            HandlerEntry entry;
+            var handlerMethod = this.HandlerType.GetMethod(http.Request.HttpMethod, BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase);
 
-            if (TryGetMethodNameForMethod(http.Request.HttpMethod, this.HandlerType, out entry))
+            if (handlerMethod != null)
             {
-                var queryStringData = PopulateDictionary(http.Request.Unvalidated().QueryString, this.RouteData.Values);
-
-                if (http.Request.Unvalidated().QueryString.Count > 0)
-                {
-                    queryStringData["_RawQueryString"] = http.Request.Unvalidated().QueryString.ToString().UrlDecode();
-                }
-
-                var formData = PopulateDictionary(http.Request.Unvalidated().Form);
-
-                object queryStringObject = null;
-                if (entry.QueryStringObjectType != null)
-                {
-                    queryStringObject = Activator.CreateInstance(entry.QueryStringObjectType);
-                    this.AssignInputs(queryStringData, entry.QueryStringObjectType, queryStringObject);
-                }
-
-                Type inputDataType = null;
-                Type genericInputDataType = null;
-                if (this.HandlerType.TryGetGenericInterfaceImplementedType(typeof(IInput<>), out inputDataType))
-                {
-                    genericInputDataType = typeof(IInput<>).MakeGenericType(inputDataType);
-                }
-
-                Type outputDataType = null;
-                Type genericOutputDataType = null;
-                IContentTypeWriter writer = null;
-                if (!entry.NoOutput && this.HandlerType.TryGetGenericInterfaceImplementedType(typeof(IOutput<>), out outputDataType))
-                {
-                    genericOutputDataType = typeof(IOutput<>).MakeGenericType(outputDataType);
-
-                    // TODO: throw if this comes back false?
-                    ContentHandling.TryGetContentTypeWriter(http.Request.AcceptTypes, this.HandlerType, outputDataType, out writer);
-                }
+                var handlerProperties = this.HandlerType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy).ToList();
 
                 var handler = Activator.CreateInstance(this.HandlerType);
 
-                this.AssignInputs(queryStringData, this.HandlerType, handler);
-                this.ReadCookies(http.Request.Cookies, this.HandlerType, handler);
+                // Assign query string/route data to the handler and query string objects.
+                //
+                var queryStringObjects = handlerMethod.GetParameters().Select(param => Activator.CreateInstance(param.ParameterType)).ToArray();
 
-                if (inputDataType != null)
+                var queryString = http.Request.Unvalidated().QueryString;
+
+                var queryStringData = PopulateDictionary(queryString, this.RouteData.Values);
+
+                if (queryString.Count > 0)
                 {
-                    var inputDataObject = Activator.CreateInstance(inputDataType);
-                    this.AssignInputs(formData, inputDataType, inputDataObject);
-
-                    PropertyInfo prop = genericInputDataType.GetProperty("Input");
-                    prop.SetValue(handler, inputDataObject, null);
+                    queryStringData["_RawQueryString"] = queryString.ToString().UrlDecode();
                 }
 
-                status = (Status)this.HandlerType.InvokeMember(entry.MethodName, BindingFlags.InvokeMethod, null, handler, (queryStringObject == null) ? null : new[] { queryStringObject });
+                this.AssignInputs(queryStringData, handler, handlerProperties.Where(p => p.GetSetMethod() != null && !p.Name.Equals("Input") && !(p.Equals("Output"))));
+
+                foreach (var queryStringObject in queryStringObjects)
+                {
+                    this.AssignInputs(queryStringData, queryStringObject, null);
+                }
+
+                // If there is an input property, assign it.
+                //
+                var inputDataProperty = handlerProperties.Where(p => p.GetSetMethod() != null && p.Name.Equals("Input")).SingleOrDefault();
+
+                if (inputDataProperty != null)
+                {
+                    var inputObject = Activator.CreateInstance(inputDataProperty.PropertyType);
+
+                    // TODO: check the incoming content type and do not assume it's always POSTed form data.
+                    var formData = PopulateDictionary(http.Request.Unvalidated().Form);
+
+                    this.AssignInputs(formData, inputObject, null);
+
+                    inputDataProperty.SetValue(handler, inputObject, null);
+                }
+
+                // Get cookie properties and assign any cookies from the request.
+                //
+                var cookieProperties = this.GetCookieProperties(handlerProperties).ToList();
+
+                this.ReadCookies(http.Request.Cookies, handler, cookieProperties);
+
+                // If there is an output and the output is requested, find a content writer.
+                //
+                var outputDataProperty = handlerProperties.Where(p => p.GetGetMethod() != null && p.Name.Equals("Output")).SingleOrDefault();
+
+                IContentTypeWriter writer = null;
+
+                if (outputDataProperty != null && !"HEAD".Equals(http.Request.HttpMethod, StringComparison.OrdinalIgnoreCase))
+                {
+                    // TODO: throw if this comes back false?
+                    ContentHandling.TryGetContentTypeWriter(http.Request.AcceptTypes, this.HandlerType, outputDataProperty.PropertyType, out writer);
+                }
+
+                status = (Status)handlerMethod.Invoke(handler, queryStringObjects);
 
                 object outputData = null;
-                if (outputDataType != null)
+                if (outputDataProperty != null)
                 {
-                    PropertyInfo prop = genericOutputDataType.GetProperty("Output");
-                    outputData = prop.GetValue(handler, null);
+                    outputData = outputDataProperty.GetValue(handler, null);
                 }
 
-                if (writer != null && outputData != null)
+                if (outputData != null && writer != null)
                 {
                     writer.Write(http.Response.Output, outputData);
 
                     http.Response.ContentType = writer.ContentType;
                 }
 
-                this.WriteCookies(http.Response.Cookies, this.HandlerType, handler);
+                // Write cookies back to the response.
+                //
+                this.WriteCookies(http.Response.Cookies, handler, cookieProperties);
             }
             else
             {
@@ -141,149 +152,91 @@ namespace TinyWebStack
             return inputs;
         }
 
-        private void AssignInputs(IDictionary<string, object> inputs, Type type, object target)
+        private void AssignInputs(IDictionary<string, object> inputs, object target, IEnumerable<PropertyInfo> properties)
         {
-            foreach (var propInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy).Where(p => p.GetSetMethod() != null))
+            foreach (var property in properties ?? target.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy).Where(p => p.GetSetMethod() != null))
             {
                 object value;
-                if (inputs.TryGetValue(propInfo.Name, out value))
+                if (inputs.TryGetValue(property.Name, out value))
                 {
                     var valueType = value.GetType();
 
-                    if (!propInfo.PropertyType.IsArray && valueType.IsArray)
+                    if (!property.PropertyType.IsArray && valueType.IsArray)
                     {
                         value = ((Array)value).GetValue(0);
                     }
 
-                    var assign = Convert.ChangeType(value, propInfo.PropertyType);
-                    propInfo.SetValue(target, assign, null);
+                    var assign = Convert.ChangeType(value, property.PropertyType);
+                    property.SetValue(target, assign, null);
                 }
             }
         }
 
-        private void ReadCookies(HttpCookieCollection cookies, Type type, object target)
+        private IEnumerable<CookiedProperty> GetCookieProperties(IEnumerable<PropertyInfo> properties)
         {
-            foreach (var propInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy).Where(p => p.GetSetMethod() != null))
+            foreach (var property in properties)
             {
-                foreach (var cookieAttribute in propInfo.GetCustomAttributes(typeof(CookieAttribute), false).Cast<CookieAttribute>())
+                foreach (var attribute in property.GetCustomAttributes(typeof(CookieAttribute), false).Cast<CookieAttribute>())
                 {
-                    var cookie = cookies[cookieAttribute.Name];
-
-                    if (cookie != null)
-                    {
-                        object value = (cookie.Values.Count > 1) ? cookie[propInfo.Name] : cookie.Value;
-                        var assign = Convert.ChangeType(value, propInfo.PropertyType);
-                        propInfo.SetValue(target, assign, null);
-                    }
+                    yield return new CookiedProperty() { Property = property, Attribute = attribute };
                 }
             }
         }
 
-        private void WriteCookies(HttpCookieCollection cookies, Type type, object target)
+        private void ReadCookies(HttpCookieCollection cookies, object target, IEnumerable<CookiedProperty> cookiedProperties)
         {
-            foreach (var propInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy).Where(p => p.GetGetMethod() != null))
+            foreach (var cookiedProperty in cookiedProperties.Where(p => p.Property.GetSetMethod() != null))
             {
-                foreach (var cookieAttribute in propInfo.GetCustomAttributes(typeof(CookieAttribute), false).Cast<CookieAttribute>())
+                var cookie = cookies[cookiedProperty.Attribute.Name];
+
+                if (cookie != null)
                 {
-                    var cookie = new HttpCookie(cookieAttribute.Name);
-                    cookies.Add(cookie);
+                    object value = (cookie.Values.Count > 1) ? cookie[cookiedProperty.Property.Name] : cookie.Value;
 
-                    object value = propInfo.GetValue(target, null);
+                    var assign = Convert.ChangeType(value, cookiedProperty.Property.PropertyType);
 
-                    if (value == null)
+                    cookiedProperty.Property.SetValue(target, assign, null);
+                }
+            }
+        }
+
+        private void WriteCookies(HttpCookieCollection cookies, object target, IEnumerable<CookiedProperty> cookiedProperties)
+        {
+            foreach (var cookiedProperty in cookiedProperties.Where(p => p.Property.GetGetMethod() != null))
+            {
+                var cookie = new HttpCookie(cookiedProperty.Attribute.Name);
+                cookies.Add(cookie);
+
+                object value = cookiedProperty.Property.GetValue(target, null);
+
+                if (value == null)
+                {
+                    cookie.Expires = HttpHandler.DeleteCookieDate;
+                }
+                else
+                {
+                    cookie.Value = value.ToString();
+                    cookie.HttpOnly = cookiedProperty.Attribute.HttpOnly;
+                    cookie.Secure = cookiedProperty.Attribute.Secure;
+
+                    if (cookiedProperty.Attribute.Expires > 0)
                     {
-                        cookie.Expires = HttpHandler.DeleteCookieDate;
+                        cookie.Expires = DateTime.UtcNow.AddMinutes(cookiedProperty.Attribute.Expires);
                     }
-                    else
+
+                    if (!String.IsNullOrEmpty(cookiedProperty.Attribute.Path))
                     {
-                        cookie.Value = value.ToString();
-                        cookie.HttpOnly = cookieAttribute.HttpOnly;
-                        cookie.Secure = cookieAttribute.Secure;
-
-                        if (cookieAttribute.Expires > 0)
-                        {
-                            cookie.Expires = DateTime.UtcNow.AddMinutes(cookieAttribute.Expires);
-                        }
-
-                        if (!String.IsNullOrEmpty(cookieAttribute.Path))
-                        {
-                            cookie.Path = cookieAttribute.Path;
-                        }
+                        cookie.Path = cookiedProperty.Attribute.Path;
                     }
                 }
             }
         }
 
-        private static bool TryGetMethodNameForMethod(string method, Type handlerType, out HandlerEntry entry)
+        private class CookiedProperty
         {
-            entry = null;
+            public PropertyInfo Property { get; set; }
 
-            string methodName = null;
-            Type methodType = null;
-            Type methodInputType = null;
-
-            switch (method)
-            {
-                case "GET":
-                    methodName = "Get";
-                    methodType = typeof(IGet);
-                    methodInputType = typeof(IGet<>);
-                    break;
-
-                case "POST":
-                    methodName = "Post";
-                    methodType = typeof(IPost);
-                    methodInputType = typeof(IPost<>);
-                    break;
-
-                case "PUT":
-                    methodName = "Put";
-                    methodType = typeof(IPut);
-                    methodInputType = typeof(IPut<>);
-                    break;
-
-                case "DELETE":
-                    methodName = "Delete";
-                    methodType = typeof(IDelete);
-                    methodInputType = typeof(IDelete<>);
-                    break;
-
-                case "PATCH":
-                    methodName = "Patch";
-                    methodType = typeof(IPatch);
-                    methodInputType = typeof(IPatch<>);
-                    break;
-
-                case "HEAD":
-                    methodName = "Head";
-                    methodType = typeof(IHead);
-                    methodInputType = typeof(IHead<>);
-                    break;
-
-                default:
-                    return false;
-            }
-
-            Type inputType = null;
-            if (methodInputType != null && handlerType.TryGetGenericInterfaceImplementedType(methodInputType, out inputType))
-            {
-                entry = new HandlerEntry() { MethodName = methodName, QueryStringObjectType = inputType };
-            }
-            else if (handlerType.ImplementsInterface(methodType))
-            {
-                entry = new HandlerEntry() { MethodName = methodName };
-            }
-
-            return entry != null;
-        }
-
-        private class HandlerEntry
-        {
-            public bool NoOutput { get { return "Head".Equals(this.MethodName); } }
-
-            public string MethodName { get; set; }
-
-            public Type QueryStringObjectType { get; set; }
+            public CookieAttribute Attribute { get; set; }
         }
     }
 }
