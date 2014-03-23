@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Munq;
 using Munq.LifetimeManagers;
+using TinyWebStack.Implementation;
 
 namespace TinyWebStack
 {
@@ -20,16 +21,16 @@ namespace TinyWebStack
         {
             this.IocContainer = new IocContainer();
 
-            this.IocContainer.Register<IApplicationState>(_ => new Implementation.ApplicationState())
+            this.IocContainer.Register<IApplicationState, ApplicationState>()
                 .WithLifetimeManager(RequestLifetime);
 
-            this.IocContainer.Register<IRequest>(_ => new Implementation.Request())
+            this.IocContainer.Register<IRequest, Request>()
                 .WithLifetimeManager(RequestLifetime);
 
-            this.IocContainer.Register<IResponse>(_ => new Implementation.Response())
+            this.IocContainer.Register<IResponse, Response>()
                 .WithLifetimeManager(RequestLifetime);
 
-            this.IocContainer.Register<IServerUtility>(_ => new Implementation.ServerUtility())
+            this.IocContainer.Register<IServerUtility, ServerUtility>()
                 .WithLifetimeManager(ContainerLifetime);
         }
 
@@ -41,82 +42,53 @@ namespace TinyWebStack
         /// <remarks>The setter is intended for use by tests to override the default creation.</remarks>
         public static IContainer Current { get; set; }
 
-        public void Register<T>(Func<IContainerDependencyResolver, T> register) where T : class
+        public void Register<T>(Func<IContainerDependencyResolver, T> register, Lifetime lifetime = Lifetime.None) where T : class
         {
             // Add a little hop in the register to use our container to do the registration
             // so we don't expose the internal IocContainer from Munq implementation details.
             //
-            this.IocContainer.Register<T>(c => register(this));
+            this.RegistrationLifetime(this.IocContainer.Register<T>(c => register(this)), lifetime);
         }
 
-        //public bool CanResolve(string name, Type type)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public bool CanResolve(Type type)
-        //{
-        //    return this.IocContainer.CanResolve(type);
-        //}
+        public void Register<T, I>(Lifetime lifetime = Lifetime.None)
+            where T : class
+            where I : class, T
+        {
+            this.RegistrationLifetime(this.IocContainer.Register<T, I>(), lifetime);
+        }
 
         public bool CanResolve<T>() where T : class
         {
             return this.IocContainer.CanResolve<T>();
         }
 
-        //public bool CanResolve<T>(string name) where T : class
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public Func<object> LazyResolve(string name, Type type)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public Func<object> LazyResolve(Type type)
-        //{
-        //    return this.IocContainer.LazyResolve(type);
-        //}
-
         public Func<T> LazyResolve<T>() where T : class
         {
             return this.IocContainer.LazyResolve<T>();
         }
-
-        //public Func<T> LazyResolve<T>(string name) where T : class
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public object Resolve(string name, Type type)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public object Resolve(Type type)
-        //{
-        //    return this.IocContainer.Resolve(type);
-        //}
 
         public T Resolve<T>() where T : class
         {
             return this.IocContainer.Resolve<T>();
         }
 
-        //public T Resolve<T>(string name) where T : class
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public IEnumerable<object> ResolveAll(Type type)
-        //{
-        //    return this.IocContainer.ResolveAll(type);
-        //}
-
         public IEnumerable<T> ResolveAll<T>() where T : class
         {
             return this.IocContainer.ResolveAll<T>();
+        }
+
+        private void RegistrationLifetime(IRegistration registration, Lifetime lifetime)
+        {
+            switch (lifetime)
+            {
+                case Lifetime.Application:
+                    registration.WithLifetimeManager(this.ContainerLifetime);
+                    break;
+
+                case Lifetime.Request:
+                    registration.WithLifetimeManager(this.RequestLifetime);
+                    break;
+            }
         }
     }
 }

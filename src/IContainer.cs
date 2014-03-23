@@ -1,5 +1,4 @@
 ﻿using System;
-using Munq;
 
 namespace TinyWebStack
 {
@@ -8,6 +7,10 @@ namespace TinyWebStack
     /// </summary>
     public interface IContainer : IContainerDependencyResolver
     {
-        void Register<T>(Func<IContainerDependencyResolver, T> register) where T : class;
+        void Register<T>(Func<IContainerDependencyResolver, T> register, Lifetime lifetime = Lifetime.None) where T : class;
+
+        void Register<T, I>(Lifetime lifetime = Lifetime.None)
+            where T : class
+            where I : class, T;
     }
 }

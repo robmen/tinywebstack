@@ -34,6 +34,7 @@
     <Compile Include="Container.cs" />
     <Compile Include="ContentTypeAttribute.cs" />
     <Compile Include="CookieAttribute.cs" />
+    <Compile Include="Lifetime.cs" />
     <Compile Include="Models\FileTransmission.cs" />
     <Compile Include="HttpHandler.cs" />
     <Compile Include="IContainerDependencyResolver.cs" />
