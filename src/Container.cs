@@ -67,6 +67,11 @@ namespace TinyWebStack
             return this.IocContainer.LazyResolve<T>();
         }
 
+        public object Resolve(Type type)
+        {
+            return this.IocContainer.Resolve(type);
+        }
+
         public T Resolve<T>() where T : class
         {
             return this.IocContainer.Resolve<T>();

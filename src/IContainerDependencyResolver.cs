@@ -12,6 +12,8 @@ namespace TinyWebStack
 
         Func<T> LazyResolve<T>() where T : class;
 
+        object Resolve(Type type);
+
         T Resolve<T>() where T : class;
 
         IEnumerable<T> ResolveAll<T>() where T : class;
