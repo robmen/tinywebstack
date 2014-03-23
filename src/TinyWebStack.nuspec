@@ -9,7 +9,6 @@
     <projectUrl>https://github.com/robmen/tinywebstack</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes>Initial pre-release of TinyWebStack.</releaseNotes>
     <copyright>$author$</copyright>
     <tags>tiny web stack aspnet</tags>
   </metadata>
