@@ -73,6 +73,11 @@ namespace TinyWebStack
                         }
                     }
                 }
+
+                if (writer != null)
+                {
+                    break;
+                }
             }
 
             return writer != null;
