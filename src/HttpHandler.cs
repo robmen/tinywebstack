@@ -192,18 +192,33 @@ namespace TinyWebStack
         {
             foreach (var property in properties ?? target.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy).Where(p => p.GetSetMethod() != null))
             {
-                object value;
-                if (inputs.TryGetValue(property.Name, out value))
+                if (property.PropertyType.IsInterface)
                 {
-                    var valueType = value.GetType();
-
-                    if (!property.PropertyType.IsArray && valueType.IsArray)
+                    try
                     {
-                        value = ((Array)value).GetValue(0);
+                        object resolved = Container.Current.Resolve(property.PropertyType);
+                        property.SetValue(target, resolved, null);
                     }
+                    catch (KeyNotFoundException)
+                    {
+                        // TODO: should we rethrow here since it indicates the interface was not registered with the container?
+                    }
+                }
+                else
+                {
+                    object value;
+                    if (inputs.TryGetValue(property.Name, out value))
+                    {
+                        var valueType = value.GetType();
 
-                    var assign = Convert.ChangeType(value, property.PropertyType);
-                    property.SetValue(target, assign, null);
+                        if (!property.PropertyType.IsArray && valueType.IsArray)
+                        {
+                            value = ((Array)value).GetValue(0);
+                        }
+
+                        var assign = Convert.ChangeType(value, property.PropertyType);
+                        property.SetValue(target, assign, null);
+                    }
                 }
             }
         }
