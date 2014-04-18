@@ -4,7 +4,7 @@ using TinyWebStack.Models;
 
 namespace TinyWebStack.Implementation
 {
-    public class FileTransmissionWriter : IContentTypeWriter
+    internal class FileTransmissionWriter : IContentTypeWriter
     {
         public string ContentType { get; private set; }
 
