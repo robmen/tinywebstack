@@ -13,6 +13,14 @@
             this.Complexity = this.Path.Split('/').Length;
         }
 
+        public RouteAttribute(string name, string path)
+            : this(path)
+        {
+            this.Name = name;
+        }
+
+        public string Name { get; private set; }
+
         public string Path { get; private set; }
 
         public int Complexity { get; private set; }

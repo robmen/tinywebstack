@@ -50,7 +50,7 @@ namespace TinyWebStack
 
             foreach (var routedType in routedTypes)
             {
-                RouteHandler routeHandler = new RouteHandler(routedType.Type);
+                var routeHandler = new RouteHandler(routedType.Type);
 
                 foreach (var routeAttribute in routedType.Attributes)
                 {
@@ -58,7 +58,16 @@ namespace TinyWebStack
                         (IRouteDefaultsAndConstraintsProvider)Activator.CreateInstance(routeAttribute.DefaultsAndConstraintsProviderType) :
                         NullRouteDefaultsAndConstraintsProvider.Instance;
 
-                    collection.Add(new Route(routeAttribute.Path, defaultsAndContraints.RouteDefaults, defaultsAndContraints.RouteConstraints, routeHandler));
+                    var route = new Route(routeAttribute.Path, defaultsAndContraints.RouteDefaults, defaultsAndContraints.RouteConstraints, routeHandler);
+
+                    if (String.IsNullOrEmpty(routeAttribute.Name))
+                    {
+                        collection.Add(route);
+                    }
+                    else
+                    {
+                        collection.Add(routeAttribute.Name, route);
+                    }
                 }
             }
 
