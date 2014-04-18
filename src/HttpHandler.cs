@@ -209,11 +209,14 @@ namespace TinyWebStack
                     object value;
                     if (inputs.TryGetValue(property.Name, out value))
                     {
-                        var valueType = value.GetType();
-
-                        if (!property.PropertyType.IsArray && valueType.IsArray)
+                        if (value != null)
                         {
-                            value = ((Array)value).GetValue(0);
+                            var valueType = value.GetType();
+
+                            if (!property.PropertyType.IsArray && valueType.IsArray)
+                            {
+                                value = ((Array)value).GetValue(0);
+                            }
                         }
 
                         var assign = Convert.ChangeType(value, property.PropertyType);
