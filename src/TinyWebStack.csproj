@@ -95,7 +95,7 @@
   -->
   <Target Name="AfterBuild" DependsOnTargets="_GatherAfterBuildInputsOutputs" Inputs="@(AfterBuildInput)" Outputs="@(AfterBuildOutput)">
     <MakeDir Directories="$(OutputPath)package" />
-    <Exec Command="nuget.exe pack $(MsbuildProjectFile) -OutputDirectory $(OutputPath)package" />
+    <Exec Command="nuget.exe pack $(MsbuildProjectFile) -Properties Configuration=$(Configuration) -OutputDirectory $(OutputPath)package" />
     <ItemGroup>
       <NugetPackage Include="$(OutputPath)package\TinyWebStack.*.nupkg" />
     </ItemGroup>
