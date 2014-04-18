@@ -30,6 +30,9 @@ namespace TinyWebStack
             this.IocContainer.Register<IResponse, Response>()
                 .WithLifetimeManager(RequestLifetime);
 
+            this.IocContainer.Register<IRoutes, Routes>()
+                .WithLifetimeManager(RequestLifetime);
+
             this.IocContainer.Register<IServerUtility, ServerUtility>()
                 .WithLifetimeManager(ContainerLifetime);
         }

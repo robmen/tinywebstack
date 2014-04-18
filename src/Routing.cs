@@ -9,7 +9,7 @@ namespace TinyWebStack
     public static class Routing
     {
         /// <summary>
-        /// Registers the routes found in the provided assemblies.
+        /// Registers the routes found in the provided assemblies into the global <see cref="RouteTable"/>.
         /// </summary>
         /// <param name="assemblies">Optional list of assemblies to register. Default is the calling assembly.</param>
         public static void RegisterRoutes(params Assembly[] assemblies)
@@ -19,23 +19,7 @@ namespace TinyWebStack
                 assemblies = new[] { Assembly.GetCallingAssembly() };
             }
 
-            RegisterRoutes(null, assemblies);
-        }
-
-        /// <summary>
-        /// Registers the routes found in the provided assemblies to a collection.
-        /// </summary>
-        /// <param name="collection">Optional collection to populate. Default is the global <see cref="RouteTable"/>.</param>
-        /// <param name="assemblies">Optional list of assemblies to register. Default is the calling assembly.</param>
-        /// <returns>Collection of routes. </returns>
-        public static RouteCollection RegisterRoutes(RouteCollection collection = null, params Assembly[] assemblies)
-        {
-            collection = collection ?? RouteTable.Routes;
-
-            if (assemblies.Length == 0)
-            {
-                assemblies = new[] { Assembly.GetCallingAssembly() };
-            }
+            var collection = RouteTable.Routes;
 
             // Gather all the route attributes and sort them by their path information
             // to ensure routes are added to the collection in the correct order.
@@ -70,8 +54,6 @@ namespace TinyWebStack
                     }
                 }
             }
-
-            return collection;
         }
 
         private class RoutedType : IComparable<RoutedType>
