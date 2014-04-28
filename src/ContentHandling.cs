@@ -54,7 +54,7 @@ namespace TinyWebStack
         /// <returns>True if a writer was found for the accepted content types.</returns>
         public static bool TryGetContentTypeWriter(string[] accepted, Type handlerType, Type dataType, out IContentTypeWriter writer)
         {
-            var contentTypes = accepted.Union(new[] { "?" });
+            var contentTypes = accepted == null ? new[] { "?" } : accepted.Union(new[] { "?" });
 
             writer = null;
 
