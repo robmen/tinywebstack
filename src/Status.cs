@@ -65,6 +65,8 @@ namespace TinyWebStack
 
         public static readonly Status MethodNotAllowed = new Status(405, "MethodNotAllowed");
 
+        public static readonly Status NotAcceptable = new Status(406, "Not Acceptable");
+
         public static readonly Status Conflict = new Status(409, "Conflict");
 
         public static readonly Status Gone = new Status(410, "Gone");
