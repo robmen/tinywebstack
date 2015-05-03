@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Helpers;
 using System.Web.Routing;
@@ -10,7 +11,7 @@ using TinyWebStack.Extensions;
 
 namespace TinyWebStack
 {
-    public class HttpHandler : IHttpHandler
+    public class HttpHandler : HttpTaskAsyncHandler
     {
         private static readonly DateTime DeleteCookieDate = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -21,39 +22,50 @@ namespace TinyWebStack
             this.RouteData = routeData;
         }
 
-        public virtual bool IsReusable
-        {
-            get { return false; }
-        }
-
         private Type HandlerType { get; set; }
 
         private RouteData RouteData { get; set; }
 
-        public void ProcessRequest(HttpContext http)
+        public override Task ProcessRequestAsync(HttpContext http)
         {
-            Status status = this.GetStatus(http);
+            //var status = await this.GetStatusAsync(http);
 
-            http.Response.StatusCode = status.Code;
-            http.Response.StatusDescription = status.Description;
-            http.Response.RedirectLocation = http.Request.ResolveUrl(status.Location);
-            http.Response.TrySkipIisCustomErrors = true;
+            //http.Response.StatusCode = status.Code;
+            //http.Response.StatusDescription = status.Description;
+            //http.Response.RedirectLocation = http.Request.ResolveUrl(status.Location);
+            //http.Response.TrySkipIisCustomErrors = true;
+            return this.GetStatusAsync(http)
+                .ContinueWith(status =>
+                {
+                    http.Response.StatusCode = status.Result.Code;
+                    http.Response.StatusDescription = status.Result.Description;
+                    http.Response.RedirectLocation = http.Request.ResolveUrl(status.Result.Location);
+                    http.Response.TrySkipIisCustomErrors = true;
+                });
         }
 
-        private Status GetStatus(HttpContext http)
+        private Task<Status> GetStatusAsync(HttpContext http)
         {
-            var handlerMethod = this.HandlerType.GetMethod(http.Request.HttpMethod, BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase);
+            // Look for a handler method named the standard "async" way (i.e. GetAsync or PostAsync) and if that isn't
+            // found, look for a plainly named handler method (i.e. Get or Post).
+            //
+            var handlerMethod = this.HandlerType.GetMethod(http.Request.HttpMethod + "Async", BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase);
 
             if (handlerMethod == null)
             {
-                return Status.MethodNotAllowed;
+                handlerMethod = this.HandlerType.GetMethod(http.Request.HttpMethod, BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.IgnoreCase);
+            }
+
+            if (handlerMethod == null)
+            {
+                return Task.FromResult<Status>(Status.MethodNotAllowed);
             }
 
             var handler = this.CreateInstanceWithResolution(this.HandlerType);
 
             if (handler == null)
             {
-                return Status.InternalServerError;
+                return Task.FromResult<Status>(Status.InternalServerError);
             }
 
             var handlerProperties = this.HandlerType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy).ToList();
@@ -80,18 +92,40 @@ namespace TinyWebStack
 
             // If there is an input property, assign it.
             //
-            var inputDataProperty = handlerProperties.Where(p => p.GetSetMethod() != null && p.Name.Equals("Input")).SingleOrDefault();
+            var inputDataProperty = handlerProperties.Where(p => p.GetSetMethod() != null && p.Name.Equals("Input")).FirstOrDefault();
 
             if (inputDataProperty != null)
             {
-                var inputObject = Activator.CreateInstance(inputDataProperty.PropertyType);
+                var contentType = http.Request.ContentType;
 
-                // TODO: check the incoming content type and do not assume it's always POSTed form data.
-                var formData = PopulateDictionary(http.Request.Unvalidated().Form);
+                if (contentType.StartsWith("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
+                {
+                    var inputObject = Activator.CreateInstance(inputDataProperty.PropertyType);
 
-                this.AssignInputs(formData, inputObject, null);
+                    // TODO: check the incoming content type and do not assume it's always POSTed form data.
+                    var formData = PopulateDictionary(http.Request.Unvalidated().Form);
 
-                inputDataProperty.SetValue(handler, inputObject, null);
+                    this.AssignInputs(formData, inputObject, null);
+
+                    inputDataProperty.SetValue(handler, inputObject, null);
+                }
+                else if (contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var json = http.Request.Unvalidated().Form;
+
+                    if (inputDataProperty.PropertyType == typeof(string))
+                    {
+                        inputDataProperty.SetValue(handler, json, null);
+                    }
+                    else
+                    {
+                        throw new NotImplementedException("Do not currently suport serializing objects from JSON");
+                    }
+                }
+                //else
+                //{
+                //    throw new NotImplementedException(String.Concat("Unsupported request content type: ", contentType));
+                //}
             }
 
             // Get cookie properties and assign any cookies from the request.
@@ -102,25 +136,33 @@ namespace TinyWebStack
 
             // If there is an output and the output is requested, find a content writer.
             //
-            var outputDataProperty = handlerProperties.Where(p => p.GetGetMethod() != null && p.Name.Equals("Output")).SingleOrDefault();
+            var outputDataProperty = handlerProperties.Where(p => p.GetGetMethod() != null && p.Name.Equals("Output")).FirstOrDefault();
 
             IContentTypeWriter writer = null;
 
             if (outputDataProperty != null && !"HEAD".Equals(http.Request.HttpMethod, StringComparison.OrdinalIgnoreCase))
             {
-                // TODO: throw if this comes back false?
-                ContentHandling.TryGetContentTypeWriter(http.Request.AcceptTypes, this.HandlerType, outputDataProperty.PropertyType, out writer);
+                if (!ContentHandling.TryGetContentTypeWriter(http.Request.AcceptTypes, this.HandlerType, outputDataProperty.PropertyType, out writer))
+                {
+                    return Task.FromResult<Status>(Status.NotAcceptable);
+                }
             }
 
-            Status status = (Status)handlerMethod.Invoke(handler, queryStringObjects);
-
-            object outputData = null;
-            if (outputDataProperty != null)
+            // Execute the method to retrieve the status.
+            //
+            Task<Status> statusTask;
+            if (handlerMethod.ReturnType.IsAssignableFrom(typeof(Task<Status>)))
             {
-                outputData = outputDataProperty.GetValue(handler, null);
+                statusTask = (Task<Status>)handlerMethod.Invoke(handler, queryStringObjects);
+            }
+            else
+            {
+                statusTask = Task.FromResult<Status>((Status)handlerMethod.Invoke(handler, queryStringObjects));
             }
 
-            if (outputData != null && writer != null)
+            var outputData = (outputDataProperty != null) ? outputDataProperty.GetValue(handler, null) : null;
+
+            if (writer != null && outputData != null)
             {
                 writer.Write(http.Response.Output, outputData);
 
@@ -131,14 +173,17 @@ namespace TinyWebStack
             //
             this.WriteCookies(http.Response.Cookies, handler, cookieProperties);
 
-            return status;
+            return statusTask;
         }
 
         private object CreateInstanceWithResolution(Type type)
         {
-            bool success = false;
+            var success = false;
             object[] arguments = null;
 
+            // Find the most complex constructor (the one with the most parameters) for which we can resolve via the
+            // IOC container.
+            //
             foreach (var constructor in type.GetConstructors().OrderByDescending(c => c.GetParameters().Length))
             {
                 var parameters = constructor.GetParameters();
@@ -146,7 +191,7 @@ namespace TinyWebStack
 
                 try
                 {
-                    for (int i = 0; i < arguments.Length; ++i)
+                    for (var i = 0; i < arguments.Length; ++i)
                     {
                         arguments[i] = Container.Current.Resolve(parameters[i].ParameterType);
                     }
@@ -168,7 +213,8 @@ namespace TinyWebStack
 
             foreach (var collection in collections)
             {
-                NameValueCollection nvc = collection as NameValueCollection;
+                var nvc = collection as NameValueCollection;
+
                 if (nvc != null)
                 {
                     foreach (string key in nvc.Keys)
@@ -179,6 +225,7 @@ namespace TinyWebStack
                 else
                 {
                     var dictionary = collection as IDictionary<string, object>;
+
                     foreach (var kvp in dictionary)
                     {
                         inputs[kvp.Key] = kvp.Value;
@@ -196,7 +243,8 @@ namespace TinyWebStack
                 {
                     try
                     {
-                        object resolved = Container.Current.Resolve(property.PropertyType);
+                        var resolved = Container.Current.Resolve(property.PropertyType);
+
                         property.SetValue(target, resolved, null);
                     }
                     catch (KeyNotFoundException)
@@ -207,6 +255,7 @@ namespace TinyWebStack
                 else
                 {
                     object value;
+
                     if (inputs.TryGetValue(property.Name, out value))
                     {
                         if (value != null)
@@ -261,7 +310,7 @@ namespace TinyWebStack
                 var cookie = new HttpCookie(cookiedProperty.Attribute.Name);
                 cookies.Add(cookie);
 
-                object value = cookiedProperty.Property.GetValue(target, null);
+                var value = cookiedProperty.Property.GetValue(target, null);
 
                 if (value == null)
                 {
